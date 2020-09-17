@@ -1,14 +1,15 @@
 package demo;
 
+import cd.elcoge.sms.SMSProvider;
 import cd.elcoge.sms.orange.SMSByOrangeAPI;
 
 public class Demo {
 
 	public static void main(String[] args) throws Throwable {
 
-		SMSByOrangeAPI smsbyorangeapi = new SMSByOrangeAPI();
+		SMSProvider smsprovider  = new SMSByOrangeAPI();
 
-		smsbyorangeapi.sendSMS("+243814524517", "Bonjour");
-		System.out.println(smsbyorangeapi.getBalance());
+		smsprovider.sendSMS("+243814524517", "Bonjour");
+		System.out.println(((SMSByOrangeAPI)smsprovider).getBalance());
 	}
 }

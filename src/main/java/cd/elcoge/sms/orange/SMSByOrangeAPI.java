@@ -1,8 +1,9 @@
 package cd.elcoge.sms.orange;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.InputStream;
 import java.util.Properties;
 
 import com.google.gson.Gson;
@@ -22,6 +23,7 @@ public class SMSByOrangeAPI implements SMSProvider {
 	final public static String SEND_MESSAGE_URL = "https://api.orange.com/smsmessaging/v1/outbound/{{dev_phone_number}}/requests";
 	final public static String GET_SMS_BALANCE_URL = "https://api.orange.com/sms/admin/v1/contracts";
 	final public static String GET_TOKEN_URL = "https://api.orange.com/oauth/v2/token";
+	final private static String TOKEN_FILE = SMSByOrangeAPI.class.getName() + "TokenFile";
 
 	final public static int SMS_MAX_LENGTH = 400;
 
@@ -33,14 +35,15 @@ public class SMSByOrangeAPI implements SMSProvider {
 	private Gson gson;
 
 	public SMSByOrangeAPI() throws Exception {
+		this.accesstoken = "";
 
 		gson = new Gson();
 
 		Properties pp = new Properties();
-		FileInputStream in;
+		InputStream in;
 		try {
-			in = new FileInputStream("smsbyorangeapi.properties");
-		} catch (FileNotFoundException e) {
+			in = getClass().getClassLoader().getResourceAsStream("smsbyorangeapi.properties");
+		} catch (Exception e) {
 			throw new Exception("smsbyorangeapi.properties not found");
 		}
 
@@ -49,13 +52,29 @@ public class SMSByOrangeAPI implements SMSProvider {
 		sendernumber = pp.getProperty("sender.number");
 		sendername = pp.getProperty("sender.name");
 		authorizationheader = pp.getProperty("authorization.header");
-		accesstoken = pp.getProperty("access.token");
 
 		in.close();
+
+		FileReader fr = null;
+
+		try {
+			fr = new FileReader(new File(System.getProperty("java.io.tmpdir"), TOKEN_FILE));
+			int ca = 0;
+			while ((ca = fr.read()) >= 0) {
+				accesstoken += (char) ca;
+			}
+
+			fr.close();
+		} catch (Exception e) {
+//			e.printStackTrace();
+//			throw new Exception("error reading token");
+			System.err.println("token file not found " + TOKEN_FILE);
+		}
+
 	}
 
 	@Override
-	public boolean sendSMS(String to, String content) throws Throwable {
+	public boolean sendSMS(String to, String content) throws Exception {
 
 		boolean result = false;
 
@@ -103,7 +122,7 @@ public class SMSByOrangeAPI implements SMSProvider {
 
 	}
 
-	public void getToken() throws Throwable {
+	public void getToken() throws Exception {
 
 		HttpUrl httpurl = HttpUrl.parse(GET_TOKEN_URL).newBuilder().build();
 
@@ -124,24 +143,17 @@ public class SMSByOrangeAPI implements SMSProvider {
 
 				accesstoken = jsonObj.get("token_type").getAsString() + " " + jsonObj.get("access_token").getAsString();
 
-				Properties pp = new Properties();
-				FileInputStream in;
-				FileOutputStream out;
+				FileWriter fw;
 				try {
-					in = new FileInputStream("smsbyorangeapi.properties");
-					
-				} catch (FileNotFoundException e) {
-					throw new Exception("smsbyorangeapi.properties not found");
+					fw = new FileWriter(new File(System.getProperty("java.io.tmpdir"), TOKEN_FILE));
+					fw.write(accesstoken);
+					fw.flush();
+
+				} catch (Exception e) {
+					throw new Exception("error saving new token");
 				}
 
-				pp.load(in);
-				in.close();
-				
-				pp.put("access.token", accesstoken);
-
-				out = new FileOutputStream("smsbyorangeapi.properties");
-				pp.store(out, null);
-				out.close();
+				fw.close();
 
 			} else {
 				throw new Exception(response.body().string());
