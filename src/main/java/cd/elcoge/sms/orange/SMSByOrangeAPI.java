@@ -191,4 +191,10 @@ public class SMSByOrangeAPI implements SMSProvider {
 			throw ex;
 		}
 	}
+
+	@Override
+	public void close() throws Exception {
+		// TODO Auto-generated method stub
+
+	}
 }
