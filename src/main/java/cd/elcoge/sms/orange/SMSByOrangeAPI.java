@@ -4,6 +4,12 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.Charset;
+import java.time.Duration;
 import java.util.Properties;
 
 import com.google.gson.Gson;
@@ -11,12 +17,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import cd.elcoge.sms.SMSProvider;
-import okhttp3.HttpUrl;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
 
 public class SMSByOrangeAPI implements SMSProvider {
 
@@ -66,8 +66,8 @@ public class SMSByOrangeAPI implements SMSProvider {
 
 			fr.close();
 		} catch (Exception e) {
-//			e.printStackTrace();
-//			throw new Exception("error reading token");
+			// e.printStackTrace();
+			// throw new Exception("error reading token");
 			System.err.println("token file not found " + TOKEN_FILE);
 		}
 
@@ -81,37 +81,53 @@ public class SMSByOrangeAPI implements SMSProvider {
 		if (content != null) {
 
 			if (content.length() > SMS_MAX_LENGTH) {
-				content = content.substring(0, SMS_MAX_LENGTH);
-				System.err.println("SMS part of the content has been cut");
+				// content = content.substring(0, SMS_MAX_LENGTH);
+				// System.err.println("SMS part of the content has been cut");
+				throw new Exception(String.format("SMS Content is great than %d", SMS_MAX_LENGTH));
 			}
 		}
 
 		OrangeBuild ob = new OrangeBuild(new OutboundSMSMessageRequest("tel:" + to, sendernumber, sendername,
 				new OutboundSMSTextMessage(content)));
 
-		HttpUrl httpurl = HttpUrl
-				.parse(SEND_MESSAGE_URL.replace("{{dev_phone_number}}", this.sendernumber).replace(":+", "%3A%2B"))
-				.newBuilder().build();
+		// HttpUrl httpurl = HttpUrl
+		// .parse(SEND_MESSAGE_URL.replace("{{dev_phone_number}}",
+		// this.sendernumber).replace(":+", "%3A%2B"))
+		// .newBuilder().build();
 
-		RequestBody requestbody = RequestBody.create(gson.toJson(ob, OrangeBuild.class),
-				MediaType.parse("application/json; charset=utf-8"));
+		// RequestBody requestbody = RequestBody.create(gson.toJson(ob,
+		// OrangeBuild.class),
+		// MediaType.parse("application/json; charset=utf-8"));
 
-		Request request = new Request.Builder().addHeader("Content-Type", "application/json")
-				.addHeader("Authorization", accesstoken).url(httpurl).post(requestbody).build();
+		// Request request = new Request.Builder().addHeader("Content-Type",
+		// "application/json")
+		// .addHeader("Authorization",
+		// accesstoken).url(httpurl).post(requestbody).build();
 
-		OkHttpClient client = new OkHttpClient();
+		// OkHttpClient client = new OkHttpClient();
 
-		try (Response response = client.newCall(request).execute()) {
-			if (response.isSuccessful()) {
+		HttpRequest request = HttpRequest.newBuilder()
+				.uri(URI.create(
+						SEND_MESSAGE_URL.replace("{{dev_phone_number}}", this.sendernumber).replace(":+", "%3A%2B")))
+				.header("Content-Type", "application/json; charset=utf-8").header("Authorization", accesstoken)
+				.POST(HttpRequest.BodyPublishers.ofString(gson.toJson(ob, OrangeBuild.class))).build();
+
+		HttpClient httpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_2)
+				.connectTimeout(Duration.ofSeconds(999)).build();
+
+		try {
+			HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+			if (response.statusCode() >= 200 & response.statusCode() <= 299) {
 				result = true;
 
-			} else if (response.code() == 401) {
+			} else if (response.statusCode() == 401) {
 				getToken();
 				System.err.println(
 						"an error 401 has been detected and refresh Token has been called, please invoke again the same method");
-				throw new Exception(response.body().string());
+				throw new Exception(response.body());
 			} else {
-				throw new Exception(response.body().string());
+				throw new Exception(response.body());
 			}
 		} catch (Exception ex) {
 			ex.printStackTrace();
@@ -124,19 +140,30 @@ public class SMSByOrangeAPI implements SMSProvider {
 
 	public void getToken() throws Exception {
 
-		HttpUrl httpurl = HttpUrl.parse(GET_TOKEN_URL).newBuilder().build();
+		// HttpUrl httpurl = HttpUrl.parse(GET_TOKEN_URL).newBuilder().build();
 
-		RequestBody requestbody = RequestBody.create("grant_type=client_credentials",
-				MediaType.parse("application/x-www-form-urlencoded"));
+		// RequestBody requestbody = RequestBody.create("grant_type=client_credentials",
+		// MediaType.parse("application/x-www-form-urlencoded"));
 
-		Request request = new Request.Builder().addHeader("Authorization", this.authorizationheader).url(httpurl)
-				.post(requestbody).build();
+		// Request request = new Request.Builder().addHeader("Authorization",
+		// this.authorizationheader).url(httpurl)
+		// .post(requestbody).build();
 
-		OkHttpClient client = new OkHttpClient();
+		// OkHttpClient client = new OkHttpClient();
 
-		try (Response response = client.newCall(request).execute()) {
-			if (response.isSuccessful()) {
-				String jsonstring = response.body().string();
+		HttpRequest request = HttpRequest.newBuilder().uri(URI.create(GET_TOKEN_URL))
+				.header("Authorization", this.authorizationheader)
+				.header("Content-Type", "application/x-www-form-urlencoded")
+				.POST(HttpRequest.BodyPublishers.ofString("grant_type=client_credentials")).build();
+
+		HttpClient httpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_2)
+				.connectTimeout(Duration.ofSeconds(999)).build();
+
+		try {
+			HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+			if (response.statusCode() >= 200 & response.statusCode() <= 299) {
+				String jsonstring = response.body();
 
 				JsonElement element = gson.fromJson(jsonstring, JsonElement.class);
 				JsonObject jsonObj = element.getAsJsonObject();
@@ -156,7 +183,7 @@ public class SMSByOrangeAPI implements SMSProvider {
 				fw.close();
 
 			} else {
-				throw new Exception(response.body().string());
+				throw new Exception(response.body());
 			}
 		} catch (Exception ex) {
 			ex.printStackTrace();
@@ -166,25 +193,34 @@ public class SMSByOrangeAPI implements SMSProvider {
 
 	public String getBalance() throws Throwable {
 
-		HttpUrl httpurl = HttpUrl.parse(GET_SMS_BALANCE_URL).newBuilder().build();
+		// HttpUrl httpurl = HttpUrl.parse(GET_SMS_BALANCE_URL).newBuilder().build();
 
-		Request request = new Request.Builder().addHeader("Authorization", accesstoken).url(httpurl).get().build();
+		// Request request = new Request.Builder().addHeader("Authorization",
+		// accesstoken).url(httpurl).get().build();
 
-		OkHttpClient client = new OkHttpClient();
+		// OkHttpClient client = new OkHttpClient();
 
-		try (Response response = client.newCall(request).execute()) {
-			if (response.isSuccessful()) {
-				String jsonstring = response.body().string();
+		HttpRequest request = HttpRequest.newBuilder().uri(URI.create(GET_SMS_BALANCE_URL))
+				.header("Authorization", this.accesstoken).GET().build();
+
+		HttpClient httpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_2)
+				.connectTimeout(Duration.ofSeconds(999)).build();
+
+		try {
+			HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+			if (response.statusCode() >= 200 & response.statusCode() <= 299) {
+				String jsonstring = response.body();
 
 				return jsonstring;
 
-			} else if (response.code() == 401) {
+			} else if (response.statusCode() == 401) {
 				getToken();
 				System.err.println(
 						"an error 401 has been detected and refresh Token has been called, please invoke again the same method");
-				throw new Exception(response.body().string());
+				throw new Exception(response.body());
 			} else {
-				throw new Exception(response.body().string());
+				throw new Exception(response.body());
 			}
 		} catch (Exception ex) {
 			ex.printStackTrace();
