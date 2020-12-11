@@ -5,7 +5,6 @@ import static org.junit.Assert.assertTrue;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import static org.hamcrest.MatcherAssert.*;
 
 import cd.elcoge.sms.SMSProvider;
 import cd.elcoge.sms.orange.SMSByOrangeAPI;

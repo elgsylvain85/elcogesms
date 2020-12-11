@@ -83,7 +83,7 @@ public class SMSByOrangeAPI implements SMSProvider {
 			if (content.length() > SMS_MAX_LENGTH) {
 				// content = content.substring(0, SMS_MAX_LENGTH);
 				// System.err.println("SMS part of the content has been cut");
-				throw new Exception(String.format("SMS Content is great than %d", SMS_MAX_LENGTH));
+				throw new Exception(String.format("SMS Content is great than %d -> %s", SMS_MAX_LENGTH, content));
 			}
 		}
 
