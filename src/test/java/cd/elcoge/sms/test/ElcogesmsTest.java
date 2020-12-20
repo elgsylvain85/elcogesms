@@ -36,6 +36,6 @@ public class ElcogesmsTest {
 	@Test
 	public void sendSMS() throws Exception {
 
-		assertTrue(smsprovider.sendSMS("+243814524517", "Bonjour"));
+		assertTrue(smsprovider.sendSMS("+xxxxxxxxxx", "Bonjour"));
 	}
 }

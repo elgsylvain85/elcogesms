@@ -2,7 +2,7 @@
 - beta
 
 # 0.1.1 2020/09/13
-- update
+- internal revision
 
 # 0.2.0 2020/12/09
 - removing okhttp3 api
